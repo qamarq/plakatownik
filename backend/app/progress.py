@@ -20,6 +20,9 @@ class ProgressEmitter:
         self._starty[step] = time.perf_counter()
         self._sink(ProgressEvent(step=step, status="started", message=message))
 
+    def update(self, step: str, message: str) -> None:
+        self._sink(ProgressEvent(step=step, status="started", message=message))
+
     def done(self, step: str, message: str = "") -> float:
         czas = time.perf_counter() - self._starty.get(step, time.perf_counter())
         self._sink(ProgressEvent(step=step, status="done", message=message, elapsed=czas))
