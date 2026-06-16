@@ -213,6 +213,13 @@ def render_poster(
     progress.done("save", f"{rozmiar_kb:.0f} KB")
 
 
+def _rozmiar_tytulu(display_city: str, skala: float) -> float:
+    base = 60 * skala
+    if len(display_city) > 10:
+        return max(base * 10 / len(display_city), 10 * skala)
+    return base
+
+
 def _rysuj_typografie(
     ax, theme, fonts, point, display_city, display_country, width, height
 ):
@@ -231,13 +238,7 @@ def _rysuj_typografie(
         else "  ".join(display_city.upper())
     )
 
-    # Dynamiczne dopasowanie rozmiaru tytułu do długości nazwy (jak w oryginale)
-    base_adjusted_main = 60 * skala
-    if len(display_city) > 10:
-        length_factor = 10 / len(display_city)
-        rozmiar_tytulu = max(base_adjusted_main * length_factor, 10 * skala)
-    else:
-        rozmiar_tytulu = base_adjusted_main
+    rozmiar_tytulu = _rozmiar_tytulu(display_city, skala)
 
     font_tytulu = (
         FontProperties(fname=fonts["bold"], size=rozmiar_tytulu)
