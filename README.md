@@ -4,6 +4,10 @@ Projekt na laboratorium z języków skryptowych, rok akademicki 2025/2026.
 
 Autorzy: Kamil Marczak, Konrad Guzek
 
+Deploy:
+```bash
+docker compose up -d --build
+```
 
 Frontend Dev:
 
