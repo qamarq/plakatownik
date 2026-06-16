@@ -39,6 +39,7 @@ export interface CompleteMessage {
   step: 'complete';
   status: JobState;
   error?: string | null;
+  result_url?: string | null;
 }
 
 export type PosterSocketMessage = ProgressEvent | CompleteMessage;

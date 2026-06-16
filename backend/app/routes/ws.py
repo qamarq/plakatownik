@@ -18,7 +18,10 @@ async def poster_progress(websocket: WebSocket, job_id: str) -> None:
         while True:
             zdarzenie = await kolejka.get()
             if zdarzenie is DONE:
-                await websocket.send_json({"step": "complete", "status": zadanie.status, "error": zadanie.blad})
+                result_url = f"/api/posters/{zadanie.id}/file" if zadanie.status == "done" else None
+                await websocket.send_json(
+                    {"step": "complete", "status": zadanie.status, "error": zadanie.blad, "result_url": result_url}
+                )
                 break
             await websocket.send_json(
                 {"step": zdarzenie.step, "status": zdarzenie.status, "message": zdarzenie.message, "elapsed": zdarzenie.elapsed}
