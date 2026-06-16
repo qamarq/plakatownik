@@ -178,7 +178,8 @@ def render_poster(
         save_kwargs["dpi"] = 300
     plt.savefig(output_path, format=fmt, **save_kwargs)
     plt.close(fig)
-    progress.done("save", str(output_path))
+    rozmiar_kb = output_path.stat().st_size / 1024
+    progress.done("save", f"{rozmiar_kb:.0f} KB")
 
 
 def _rysuj_typografie(ax, theme, fonts, point, display_city, display_country, width, height):
