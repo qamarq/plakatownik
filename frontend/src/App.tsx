@@ -7,7 +7,7 @@ import { PosterPreview } from '@/components/PosterPreview';
 import { ProgressLog } from '@/components/ProgressLog';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Card, CardContent } from '@/components/ui/card';
-import { connectPosterSocket, fetchThemes, getPoster, startPoster } from '@/lib/api';
+import { connectPosterSocket, fetchThemes, startPoster } from '@/lib/api';
 import {
   isCompleteMessage,
   type JobState,
@@ -41,7 +41,7 @@ function PosterownikApp() {
       const job = await startPoster(request);
       setJobState(job.status);
 
-      const socket = connectPosterSocket(job.id, async (data) => {
+      const socket = connectPosterSocket(job.id, (data) => {
         if (isCompleteMessage(data)) {
           socket.close();
           if (data.status === 'error') {
@@ -49,8 +49,7 @@ function PosterownikApp() {
             setJobState('error');
             return;
           }
-          const finished = await getPoster(job.id);
-          setResultUrl(finished.result_url ?? null);
+          setResultUrl(data.result_url ?? null);
           setJobState('done');
           return;
         }
