@@ -130,30 +130,30 @@ export function PosterForm({ themes, busy, onSubmit }: Props) {
                 />
                 <FieldError errors={[form.formState.errors.distance]} />
               </Field>
-            </div>
 
-            <Controller
-              name="format"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel>Format</FieldLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FORMATS.map((f) => (
-                        <SelectItem key={f} value={f}>
-                          {f.toUpperCase()}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FieldError errors={[fieldState.error]} />
-                </Field>
-              )}
-            />
+              <Controller
+                name="format"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel>Format</FieldLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {FORMATS.map((f) => (
+                          <SelectItem key={f} value={f}>
+                            {f.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldError errors={[fieldState.error]} />
+                  </Field>
+                )}
+              />
+            </div>
 
             <details className="rounded-md border border-input p-3">
               <summary className="cursor-pointer text-sm font-medium">Opcje dodatkowe</summary>
