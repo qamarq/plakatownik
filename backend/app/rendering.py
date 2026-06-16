@@ -8,9 +8,9 @@ matplotlib.use("Agg")
 
 import matplotlib.colors as mcolors  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
+import numpy as np  # noqa: E402
 import osmnx as ox  # noqa: E402
 from matplotlib.font_manager import FontProperties  # noqa: E402
-from matplotlib.textpath import TextPath  # noqa: E402
 from networkx import MultiDiGraph  # noqa: E402
 from shapely.geometry import Point, box  # noqa: E402
 
@@ -32,7 +32,9 @@ def _uzywa_nielatynskiego_pisma(tekst: str) -> bool:
     litery = [c for c in tekst if c.isalpha()]
     if not litery:
         return False
-    nielatynskie = sum(1 for c in litery if any(lo <= ord(c) <= hi for lo, hi in _ZAKRESY_NIELATYNSKIE))
+    nielatynskie = sum(
+        1 for c in litery if any(lo <= ord(c) <= hi for lo, hi in _ZAKRESY_NIELATYNSKIE)
+    )
     return nielatynskie / len(litery) > 0.5
 
 
@@ -43,7 +45,13 @@ _POZIOMY_DROG: tuple[tuple[str, ...], ...] = (
     ("tertiary", "tertiary_link"),
     ("residential", "living_street", "unclassified"),
 )
-_KOLOR_DLA_POZIOMU = ("road_motorway", "road_primary", "road_secondary", "road_tertiary", "road_residential")
+_KOLOR_DLA_POZIOMU = (
+    "road_motorway",
+    "road_primary",
+    "road_secondary",
+    "road_tertiary",
+    "road_residential",
+)
 _BAZOWA_SZEROKOSC = 1.4
 _SPADEK_NA_POZIOM = 0.8
 
@@ -64,7 +72,11 @@ def _style_krawedzi(g: MultiDiGraph, theme: dict) -> tuple[list[str], list[float
     kolory, szerokosci = [], []
     for _, _, dane in g.edges(data=True):
         poziom = _poziom_drogi(_tag_drogi(dane))
-        kolory.append(theme[_KOLOR_DLA_POZIOMU[poziom]] if poziom is not None else theme["road_default"])
+        kolory.append(
+            theme[_KOLOR_DLA_POZIOMU[poziom]]
+            if poziom is not None
+            else theme["road_default"]
+        )
         glebokosc = poziom if poziom is not None else len(_POZIOMY_DROG)
         szerokosci.append(_BAZOWA_SZEROKOSC * (_SPADEK_NA_POZIOM**glebokosc))
     return kolory, szerokosci
@@ -77,38 +89,53 @@ def oblicz_zasieg(promien: float, width: float, height: float) -> tuple[float, f
     return promien, promien * wspolczynnik
 
 
-def _okno_kadru(g_proj: MultiDiGraph, punkt: tuple[float, float], pol_x: float, pol_y: float):
+def _okno_kadru(
+    g_proj: MultiDiGraph, punkt: tuple[float, float], pol_x: float, pol_y: float
+):
     lat, lon = punkt
-    srodek = ox.projection.project_geometry(Point(lon, lat), crs="EPSG:4326", to_crs=g_proj.graph["crs"])[0]
-    minx, miny, maxx, maxy = box(srodek.x - pol_x, srodek.y - pol_y, srodek.x + pol_x, srodek.y + pol_y).bounds
+    srodek = ox.projection.project_geometry(
+        Point(lon, lat), crs="EPSG:4326", to_crs=g_proj.graph["crs"]
+    )[0]
+    minx, miny, maxx, maxy = box(
+        srodek.x - pol_x, srodek.y - pol_y, srodek.x + pol_x, srodek.y + pol_y
+    ).bounds
     return (minx, maxx), (miny, maxy)
 
 
-def _pasy_zanikania(ax, color: str, krawedz: str, udzial: float = 0.22, liczba_krokow: int = 36) -> None:
+def _pasy_zanikania(ax, color: str, krawedz: str) -> None:
+    vals = np.linspace(0, 1, 256).reshape(-1, 1)
+    gradient = np.hstack((vals, vals))
+
     rgb = mcolors.to_rgb(color)
-    _, (ymin, ymax) = ax.get_xlim(), ax.get_ylim()
-    wysokosc_pasa = (ymax - ymin) * udzial
-    wysokosc_kroku = wysokosc_pasa / liczba_krokow
+    my_colors = np.zeros((256, 4))
+    my_colors[:, 0] = rgb[0]
+    my_colors[:, 1] = rgb[1]
+    my_colors[:, 2] = rgb[2]
 
-    for i in range(liczba_krokow):
-        t = i / (liczba_krokow - 1)
-        if krawedz == "bottom":
-            y0 = ymin + i * wysokosc_kroku
-            alpha = (1 - t) ** 2
-        else:
-            y0 = ymax - wysokosc_pasa + i * wysokosc_kroku
-            alpha = t**2
-        ax.axhspan(y0, y0 + wysokosc_kroku, color=rgb, alpha=float(alpha), zorder=10, linewidth=0)
+    if krawedz == "bottom":
+        my_colors[:, 3] = np.linspace(1, 0, 256)
+        extent_y_start = 0.0
+        extent_y_end = 0.25
+    else:
+        my_colors[:, 3] = np.linspace(0, 1, 256)
+        extent_y_start = 0.75
+        extent_y_end = 1.0
 
+    custom_cmap = mcolors.ListedColormap(my_colors)
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    y_range = ylim[1] - ylim[0]
+    y_bottom = ylim[0] + y_range * extent_y_start
+    y_top = ylim[0] + y_range * extent_y_end
 
-def _dopasuj_rozmiar_fontu(tekst: str, font: FontProperties, docelowa_szerokosc_pt: float, max_size: float, min_size: float = 9.0) -> float:
-    rozmiar_testowy = 100.0
-    extents = TextPath((0, 0), tekst, size=rozmiar_testowy, prop=font).get_extents()
-    zmierzona_szerokosc = extents.width
-    if zmierzona_szerokosc <= 0:
-        return max_size
-    dopasowany = docelowa_szerokosc_pt * rozmiar_testowy / zmierzona_szerokosc
-    return max(min(dopasowany, max_size), min_size)
+    ax.imshow(
+        gradient,
+        extent=[xlim[0], xlim[1], y_bottom, y_top],
+        aspect="auto",
+        cmap=custom_cmap,
+        zorder=10,
+        origin="lower",
+    )
 
 
 def render_poster(
@@ -146,7 +173,9 @@ def render_poster(
             continue
         poligony = gdf[gdf.geometry.type.isin(["Polygon", "MultiPolygon"])]
         if not poligony.empty:
-            ox.projection.project_gdf(poligony).plot(ax=ax, facecolor=kolor, edgecolor="none", zorder=z)
+            ox.projection.project_gdf(poligony).plot(
+                ax=ax, facecolor=kolor, edgecolor="none", zorder=z
+            )
 
     kolory_krawedzi, szerokosci_krawedzi = _style_krawedzi(g_proj, theme)
     ox.plot_graph(
@@ -167,7 +196,9 @@ def render_poster(
     _pasy_zanikania(ax, theme["gradient_color"], krawedz="bottom")
     _pasy_zanikania(ax, theme["gradient_color"], krawedz="top")
 
-    _rysuj_typografie(ax, theme, fonts, point, display_city, display_country, width, height)
+    _rysuj_typografie(
+        ax, theme, fonts, point, display_city, display_country, width, height
+    )
 
     progress.done("render", f"{len(g_proj.edges)} edges drawn")
 
@@ -182,45 +213,95 @@ def render_poster(
     progress.done("save", f"{rozmiar_kb:.0f} KB")
 
 
-def _rysuj_typografie(ax, theme, fonts, point, display_city, display_country, width, height):
+def _rysuj_typografie(
+    ax, theme, fonts, point, display_city, display_country, width, height
+):
     skala = min(height, width) / 12.0
 
     def font(waga: str, rozmiar: float) -> FontProperties:
-        return FontProperties(fname=fonts[waga], size=rozmiar) if fonts else FontProperties(family="monospace", size=rozmiar)
+        return (
+            FontProperties(fname=fonts[waga], size=rozmiar)
+            if fonts
+            else FontProperties(family="monospace", size=rozmiar)
+        )
 
-    tytul = display_city if _uzywa_nielatynskiego_pisma(display_city) else "  ".join(display_city.upper())
+    tytul = (
+        display_city
+        if _uzywa_nielatynskiego_pisma(display_city)
+        else "  ".join(display_city.upper())
+    )
 
-    docelowa_szerokosc_pt = width * 72 * 0.88
-    font_testowy = FontProperties(fname=fonts["bold"], size=10) if fonts else FontProperties(family="monospace", weight="bold", size=10)
-    rozmiar_tytulu = _dopasuj_rozmiar_fontu(tytul, font_testowy, docelowa_szerokosc_pt, max_size=58 * skala, min_size=11 * skala)
+    # Dynamiczne dopasowanie rozmiaru tytułu do długości nazwy (jak w oryginale)
+    base_adjusted_main = 60 * skala
+    if len(display_city) > 10:
+        length_factor = 10 / len(display_city)
+        rozmiar_tytulu = max(base_adjusted_main * length_factor, 10 * skala)
+    else:
+        rozmiar_tytulu = base_adjusted_main
+
     font_tytulu = (
         FontProperties(fname=fonts["bold"], size=rozmiar_tytulu)
         if fonts
         else FontProperties(family="monospace", weight="bold", size=rozmiar_tytulu)
     )
 
-    font_podtytulu = font("light", 21 * skala)
-    font_wspolrzednych = font("regular", 13 * skala)
+    font_podtytulu = font("light", 22 * skala)
+    font_wspolrzednych = font("regular", 14 * skala)
     font_atrybucji = font("light", 8)
 
-    ax.text(0.5, 0.145, tytul, transform=ax.transAxes, color=theme["text"], ha="center", fontproperties=font_tytulu, zorder=11)
     ax.text(
-        0.5, 0.105, display_country.upper(), transform=ax.transAxes, color=theme["text"], ha="center",
-        fontproperties=font_podtytulu, zorder=11,
+        0.5,
+        0.14,
+        tytul,
+        transform=ax.transAxes,
+        color=theme["text"],
+        ha="center",
+        fontproperties=font_tytulu,
+        zorder=11,
+    )
+    ax.text(
+        0.5,
+        0.10,
+        display_country.upper(),
+        transform=ax.transAxes,
+        color=theme["text"],
+        ha="center",
+        fontproperties=font_podtytulu,
+        zorder=11,
     )
 
     lat, lon = point
-    strona_lat = "N" if lat >= 0 else "S"
-    strona_lon = "E" if lon >= 0 else "W"
-    wspolrzedne = f"{abs(lat):.4f}° {strona_lat} · {abs(lon):.4f}° {strona_lon}"
+    wspolrzedne = f"{abs(lat):.4f}° {'N' if lat >= 0 else 'S'} / {abs(lon):.4f}° {'E' if lon >= 0 else 'W'}"
     ax.text(
-        0.5, 0.075, wspolrzedne, transform=ax.transAxes, color=theme["text"], alpha=0.7, ha="center",
-        fontproperties=font_wspolrzednych, zorder=11,
+        0.5,
+        0.07,
+        wspolrzedne,
+        transform=ax.transAxes,
+        color=theme["text"],
+        alpha=0.7,
+        ha="center",
+        fontproperties=font_wspolrzednych,
+        zorder=11,
     )
 
-    ax.plot([0.42, 0.58], [0.125, 0.125], transform=ax.transAxes, color=theme["text"], linewidth=0.8 * skala, zorder=11)
+    ax.plot(
+        [0.4, 0.6],
+        [0.125, 0.125],
+        transform=ax.transAxes,
+        color=theme["text"],
+        linewidth=1 * skala,
+        zorder=11,
+    )
 
     ax.text(
-        0.02, 0.02, "Data: © OpenStreetMap contributors", transform=ax.transAxes, color=theme["text"], alpha=0.5,
-        ha="left", va="bottom", fontproperties=font_atrybucji, zorder=11,
+        0.02,
+        0.02,
+        "Data: © OpenStreetMap contributors",
+        transform=ax.transAxes,
+        color=theme["text"],
+        alpha=0.5,
+        ha="left",
+        va="bottom",
+        fontproperties=font_atrybucji,
+        zorder=11,
     )
