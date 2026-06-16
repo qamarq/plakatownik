@@ -13,7 +13,7 @@ from app.progress import ProgressEmitter
 
 ox.settings.overpass_url = OVERPASS_URL
 ox.settings.log_console = True
-# Routes osmnx's log() calls through the stdlib logging module (in addition
+# routes osmnx's log() calls through the stdlib logging module (in addition
 # to the console print above) so _PrzekazLogow can relay them as progress.
 ox.settings.log_file = True
 
@@ -26,8 +26,6 @@ TAGI_ZIELENI = {"leisure": ["park", "garden"], "landuse": ["grass", "forest"]}
 
 
 class _PrzekazLogow(logging.Handler):
-    """Relays this thread's osmnx log lines to the progress emitter as they happen."""
-
     def __init__(self, progress: ProgressEmitter, step: str):
         super().__init__(level=logging.INFO)
         self._progress = progress
@@ -42,7 +40,7 @@ class _PrzekazLogow(logging.Handler):
 
 @contextmanager
 def _z_zywymi_logami(progress: ProgressEmitter, step: str):
-    # Pre-attaching a handler stops osmnx's _get_logger() from also
+    # pre-attaching a handler stops osmnx's _get_logger() from also
     # installing its own FileHandler (it only does so when none exist yet).
     handler = _PrzekazLogow(progress, step)
     _OSMNX_LOGGER.addHandler(handler)

@@ -63,8 +63,8 @@ def test_okno_kadru_wymiary():
     assert ylim[1] - ylim[0] == pytest.approx(3000)
 
 
-def test_dopasuj_rozmiar_fontu_skaluje_z_dlugoscia_tekstu():
-    font = r.FontProperties(family="monospace", weight="bold", size=10)
-    krotki = r._dopasuj_rozmiar_fontu("PARIS", font, docelowa_szerokosc_pt=300, max_size=200, min_size=5)
-    dlugi = r._dopasuj_rozmiar_fontu("S A I N T - P E T E R S B U R G", font, docelowa_szerokosc_pt=300, max_size=200, min_size=5)
+def test_rozmiar_tytulu_skaluje_z_dlugoscia_tekstu():
+    krotki = r._rozmiar_tytulu("Paris", skala=1.0)
+    dlugi = r._rozmiar_tytulu("Saint-Petersburg", skala=1.0)
+    assert krotki == pytest.approx(60.0)
     assert dlugi < krotki

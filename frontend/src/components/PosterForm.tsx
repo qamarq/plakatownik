@@ -15,18 +15,29 @@ import {
 } from '@/components/ui/select';
 import type { PosterRequest, ThemeSummary } from '@/lib/types';
 
-const posterFormSchema = z.object({
-  city: z.string().min(1, 'Podaj miasto'),
-  country: z.string().min(1, 'Podaj kraj'),
-  theme: z.string().min(1, 'Wybierz motyw'),
-  distance: z.coerce.number().min(500, 'Min. 500 m').max(20000, 'Maks. 20000 m'),
-  width: z.coerce.number().min(1).max(20, 'Maks. 20 in'),
-  height: z.coerce.number().min(1).max(20, 'Maks. 20 in'),
-  format: z.enum(['png', 'svg', 'pdf']),
-  display_city: z.string().optional(),
-  display_country: z.string().optional(),
-  font_family: z.string().optional(),
-});
+const posterFormSchema = z
+  .object({
+    city: z.string().min(1, 'Podaj miasto'),
+    country: z.string().min(1, 'Podaj kraj'),
+    theme: z.string().min(1, 'Wybierz motyw'),
+    distance: z.coerce.number().min(500, 'Min. 500 m').max(20000, 'Maks. 20000 m'),
+    width: z.coerce.number().min(1).max(20, 'Maks. 20 in'),
+    height: z.coerce.number().min(1).max(20, 'Maks. 20 in'),
+    format: z.enum(['png', 'svg', 'pdf']),
+    display_city: z.string().optional(),
+    display_country: z.string().optional(),
+    font_family: z.string().optional(),
+    latitude: z.string().optional(),
+    longitude: z.string().optional(),
+  })
+  .refine(
+    (d) => {
+      const hasLat = d.latitude !== undefined && d.latitude !== '';
+      const hasLon = d.longitude !== undefined && d.longitude !== '';
+      return hasLat === hasLon;
+    },
+    { message: 'Podaj obie współrzędne albo żadnej', path: ['latitude'] },
+  );
 
 type PosterFormValues = z.infer<typeof posterFormSchema>;
 
@@ -52,15 +63,21 @@ export function PosterForm({ themes, busy, onSubmit }: Props) {
       display_city: '',
       display_country: '',
       font_family: '',
+      latitude: '',
+      longitude: '',
     },
   });
 
   function handleValid(values: PosterFormValues) {
+    const lat = values.latitude !== '' ? parseFloat(values.latitude!) : undefined;
+    const lon = values.longitude !== '' ? parseFloat(values.longitude!) : undefined;
     onSubmit({
       ...values,
       display_city: values.display_city || undefined,
       display_country: values.display_country || undefined,
       font_family: values.font_family || undefined,
+      latitude: lat,
+      longitude: lon,
     });
   }
 
@@ -158,6 +175,30 @@ export function PosterForm({ themes, busy, onSubmit }: Props) {
             <details className="rounded-md border border-input p-3">
               <summary className="cursor-pointer text-sm font-medium">Opcje dodatkowe</summary>
               <FieldGroup className="mt-3">
+                <div className="grid grid-cols-2 gap-4">
+                  <Field data-invalid={!!form.formState.errors.latitude}>
+                    <FieldLabel htmlFor="latitude">Szerokość geogr. (lat)</FieldLabel>
+                    <Input
+                      id="latitude"
+                      type="number"
+                      step="any"
+                      placeholder="np. 51.1079"
+                      {...form.register('latitude')}
+                    />
+                    <FieldError errors={[form.formState.errors.latitude]} />
+                  </Field>
+                  <Field data-invalid={!!form.formState.errors.longitude}>
+                    <FieldLabel htmlFor="longitude">Długość geogr. (lon)</FieldLabel>
+                    <Input
+                      id="longitude"
+                      type="number"
+                      step="any"
+                      placeholder="np. 17.0385"
+                      {...form.register('longitude')}
+                    />
+                    <FieldError errors={[form.formState.errors.longitude]} />
+                  </Field>
+                </div>
                 <Field>
                   <FieldLabel htmlFor="displayCity">Wyświetlana nazwa miasta</FieldLabel>
                   <Input
