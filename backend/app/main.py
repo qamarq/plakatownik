@@ -7,7 +7,7 @@ from app.config import CORS_ORIGINS
 from app.jobs import job_manager
 from app.routes import posters, themes, ws
 
-app = FastAPI(title="Posterownik")
+app = FastAPI(title="Plakatownik")
 
 app.add_middleware(
     CORSMiddleware,
