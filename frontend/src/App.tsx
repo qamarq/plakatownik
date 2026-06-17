@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { ImageIcon, MapPinned } from 'lucide-react';
 
 import { ModeToggle } from '@/components/mode-toggle';
@@ -7,7 +7,7 @@ import { PosterPreview } from '@/components/PosterPreview';
 import { ProgressLog } from '@/components/ProgressLog';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Card, CardContent } from '@/components/ui/card';
-import { connectPosterSocket, fetchThemes, startPoster } from '@/lib/api';
+import { connectPosterSocket, fetchThemes, getPoster, startPoster } from '@/lib/api';
 import {
   isCompleteMessage,
   type JobState,
@@ -15,6 +15,23 @@ import {
   type ProgressEvent,
   type ThemeSummary,
 } from '@/lib/types';
+
+const ACTIVE_JOB_COOKIE = 'plakatownik-active-job';
+const ACTIVE_JOB_MAX_AGE = 60 * 60 * 24;
+
+function getCookie(name: string): string | null {
+  const prefix = `${name}=`;
+  const cookie = document.cookie.split('; ').find((part) => part.startsWith(prefix));
+  return cookie ? decodeURIComponent(cookie.slice(prefix.length)) : null;
+}
+
+function setActiveJobCookie(jobId: string) {
+  document.cookie = `${ACTIVE_JOB_COOKIE}=${encodeURIComponent(jobId)}; path=/; max-age=${ACTIVE_JOB_MAX_AGE}; SameSite=Lax`;
+}
+
+function clearActiveJobCookie() {
+  document.cookie = `${ACTIVE_JOB_COOKIE}=; path=/; max-age=0; SameSite=Lax`;
+}
 
 function PlakatownikApp() {
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
@@ -24,11 +41,71 @@ function PlakatownikApp() {
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
 
+  function connectToJob(jobId: string) {
+    socketRef.current?.close();
+    const socket = connectPosterSocket(jobId, (data) => {
+      if (isCompleteMessage(data)) {
+        socket.close();
+        clearActiveJobCookie();
+        if (data.status === 'error') {
+          setError(data.error ?? 'Generowanie nie powiodło się');
+          setJobState('error');
+          return;
+        }
+        setResultUrl(data.result_url ?? null);
+        setJobState('done');
+        return;
+      }
+      setEvents((prev) => [...prev, data]);
+    });
+    socketRef.current = socket;
+  }
+
+  const restoreJob = useEffectEvent(async (jobId: string) => {
+    const job = await getPoster(jobId);
+    setJobState(job.status);
+    setError(job.error ?? null);
+
+    if (job.status === 'done') {
+      setEvents(job.events);
+      setResultUrl(job.result_url ?? null);
+      clearActiveJobCookie();
+      return;
+    }
+
+    if (job.status === 'error') {
+      setEvents(job.events);
+      setResultUrl(null);
+      clearActiveJobCookie();
+      return;
+    }
+
+    setResultUrl(null);
+    setEvents([]);
+    connectToJob(job.id);
+  });
+
   useEffect(() => {
     fetchThemes()
       .then(setThemes)
       .catch((e) => setError(e.message));
-    return () => socketRef.current?.close();
+    const activeJobId = getCookie(ACTIVE_JOB_COOKIE);
+    let restoreTimer: number | undefined;
+    if (activeJobId) {
+      restoreTimer = window.setTimeout(() => {
+        restoreJob(activeJobId).catch((e) => {
+          clearActiveJobCookie();
+          setError(e instanceof Error ? e.message : 'Nie udało się wznowić generowania');
+        });
+      }, 0);
+    }
+
+    return () => {
+      if (restoreTimer) {
+        window.clearTimeout(restoreTimer);
+      }
+      socketRef.current?.close();
+    };
   }, []);
 
   async function handleSubmit(request: PosterRequest) {
@@ -40,22 +117,8 @@ function PlakatownikApp() {
     try {
       const job = await startPoster(request);
       setJobState(job.status);
-
-      const socket = connectPosterSocket(job.id, (data) => {
-        if (isCompleteMessage(data)) {
-          socket.close();
-          if (data.status === 'error') {
-            setError(data.error ?? 'Generowanie nie powiodło się');
-            setJobState('error');
-            return;
-          }
-          setResultUrl(data.result_url ?? null);
-          setJobState('done');
-          return;
-        }
-        setEvents((prev) => [...prev, data]);
-      });
-      socketRef.current = socket;
+      setActiveJobCookie(job.id);
+      connectToJob(job.id);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Nie udało się uruchomić generowania');
     }
