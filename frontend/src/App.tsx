@@ -16,7 +16,7 @@ import {
   type ThemeSummary,
 } from '@/lib/types';
 
-function PosterownikApp() {
+function PlakatownikApp() {
   const [themes, setThemes] = useState<ThemeSummary[]>([]);
   const [events, setEvents] = useState<ProgressEvent[]>([]);
   const [jobState, setJobState] = useState<JobState | null>(null);
@@ -72,7 +72,7 @@ function PosterownikApp() {
               <MapPinned className="size-5" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold leading-none">Posterownik</h1>
+              <h1 className="text-lg font-semibold leading-none">Plakatownik</h1>
               <p className="text-xs text-muted-foreground">Plakaty map z danych OpenStreetMap</p>
             </div>
           </div>
@@ -117,8 +117,8 @@ function PosterownikApp() {
 
 export default function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="posterownik-theme">
-      <PosterownikApp />
+    <ThemeProvider defaultTheme="system" storageKey="plakatownik-theme">
+      <PlakatownikApp />
     </ThemeProvider>
   );
 }

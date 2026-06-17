@@ -14,7 +14,7 @@ def get_coordinates(city: str, country: str, progress: ProgressEmitter) -> tuple
         return cached
 
     progress.started("geocode", f"Looking up {city}, {country} via Nominatim")
-    geolokator = Nominatim(user_agent="posterownik", timeout=10)
+    geolokator = Nominatim(user_agent="plakatownik", timeout=10)
     time.sleep(1)
 
     try:

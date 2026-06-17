@@ -1,4 +1,4 @@
-# Posterownik
+# Plakatownik
 
 Projekt na laboratorium z języków skryptowych, rok akademicki 2025/2026.
 
